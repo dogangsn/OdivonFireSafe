@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthStore } from '../core/auth/auth-store';
-import { I18nStore, SupportedLang } from '../core/i18n/i18n';
+import { I18nStore, SupportedLang, TranslatePipe } from '../core/i18n/i18n';
 import { PRODUCT_NAVIGATION } from '../domain/domain-navigation';
 import { PRODUCT } from '../domain/product-manifest';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   template: `
     <div class="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0b1120] dark:text-slate-100">
       <a
@@ -25,7 +25,8 @@ import { PRODUCT } from '../domain/product-manifest';
       }
       <aside
         class="fixed inset-y-0 start-0 z-40 flex w-72 flex-col border-e border-slate-200 bg-white p-5 transition-transform dark:border-slate-800 dark:bg-slate-900 lg:translate-x-0"
-        [class.-translate-x-full]="!mobileOpen()"
+        [class.-translate-x-full]="!mobileOpen() && i18n.active().dir === 'ltr'"
+        [class.translate-x-full]="!mobileOpen() && i18n.active().dir === 'rtl'"
       >
         <div class="mb-7 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -70,7 +71,7 @@ import { PRODUCT } from '../domain/product-manifest';
               class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
               (click)="mobileOpen.set(false)"
               ><span class="material-symbols-rounded">{{ item.icon }}</span
-              >{{ item.label }}</a
+              >{{ item.labelKey | t }}</a
             >
           }
         </nav>
@@ -144,14 +145,15 @@ export class AppShell {
   readonly mobileOpen = signal(false);
   readonly dark = signal(localStorage.getItem('odivon:theme') === 'dark');
   readonly menu = [
-    { path: '/overview', icon: 'dashboard', label: 'Genel Bakış' },
+    { path: '/overview', icon: 'dashboard', labelKey: 'nav.overview' },
     ...PRODUCT_NAVIGATION.map((item) => ({
       path: `/${item.path}`,
       icon: item.icon,
-      label: item.label,
+      labelKey: `nav.${item.key}`,
     })),
-    { path: '/activity', icon: 'history', label: 'Aktiviteler' },
-    { path: '/settings', icon: 'settings', label: 'Ayarlar' },
+    { path: '/activity', icon: 'history', labelKey: 'nav.activity' },
+    { path: '/billing', icon: 'payments', labelKey: 'nav.billing' },
+    { path: '/settings', icon: 'settings', labelKey: 'nav.settings' },
   ];
   private readonly router = inject(Router);
   constructor() {

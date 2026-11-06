@@ -10,7 +10,7 @@ import { AuthStore } from '../../core/auth/auth-store';
       aria-labelledby="verify-title"
     >
       <span
-        class="mx-auto grid size-16 place-items-center rounded-3xl bg-violet-100 text-violet-700"
+        class="mx-auto grid size-16 place-items-center rounded-3xl bg-indigo-100 text-indigo-700"
         ><span class="material-symbols-rounded !text-3xl">mark_email_unread</span></span
       >
       <h1 id="verify-title" class="mb-3 mt-6 text-3xl font-black">E-posta adresinizi doğrulayın</h1>
@@ -21,7 +21,7 @@ import { AuthStore } from '../../core/auth/auth-store';
       @if (message()) {
         <div
           role="status"
-          class="my-5 rounded-xl bg-violet-50 p-3 text-sm font-semibold text-violet-800"
+          class="my-5 rounded-xl bg-indigo-50 p-3 text-sm font-semibold text-indigo-800"
         >
           {{ message() }}
         </div>
@@ -101,8 +101,8 @@ export class VerifyEmailPage {
       this.busy.set(false);
     }
   }
-  logout() {
-    this.auth.logout();
+  async logout() {
+    await this.auth.logout();
     void this.router.navigateByUrl('/login');
   }
 }

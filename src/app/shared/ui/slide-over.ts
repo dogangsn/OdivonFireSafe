@@ -23,20 +23,20 @@ import { TranslatePipe } from '../../core/i18n/i18n';
         [class.max-w-3xl]="wide()"
         [class.max-w-lg]="!wide()"
       >
-        <div class="h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-cyan-400"></div>
+        <div class="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-400"></div>
         <header
-          class="border-b border-slate-200 bg-gradient-to-b from-violet-50/80 to-white px-6 py-5 dark:border-slate-800 dark:from-violet-950/30 dark:to-slate-900 sm:px-8"
+          class="border-b border-slate-200 bg-gradient-to-b from-indigo-50/80 to-white px-6 py-5 dark:border-slate-800 dark:from-indigo-950/30 dark:to-slate-900 sm:px-8"
         >
           <div class="flex items-start justify-between gap-4">
             <div class="flex min-w-0 items-start gap-3">
               <span
-                class="grid size-11 shrink-0 place-items-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-500/25"
+                class="grid size-11 shrink-0 place-items-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
               >
                 <span class="material-symbols-rounded">{{ icon() }}</span>
               </span>
               <div class="min-w-0">
                 <div
-                  class="mb-1 text-[10px] font-extrabold uppercase tracking-[.18em] text-violet-600 dark:text-violet-300"
+                  class="mb-1 text-[10px] font-extrabold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-300"
                 >
                   {{ eyebrow() }}
                 </div>
@@ -117,6 +117,7 @@ export class SlideOver {
   }
 
   async requestClose(): Promise<void> {
+    if (!this.open()) return;
     if (this.dirty()) {
       const result = await Swal.fire({
         title: 'Kaydedilmemiş değişiklikler',

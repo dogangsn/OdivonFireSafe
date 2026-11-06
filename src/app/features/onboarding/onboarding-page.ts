@@ -13,7 +13,7 @@ import { AuthStore } from '../../core/auth/auth-store';
     <div class="mx-auto max-w-6xl py-6">
       <header class="mb-7 flex items-center gap-3">
         <span
-          class="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 to-violet-700 text-white"
+          class="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 to-indigo-700 text-white"
           ><span class="material-symbols-rounded">local_fire_department</span></span
         >
         <div>
@@ -23,7 +23,7 @@ import { AuthStore } from '../../core/auth/auth-store';
       </header>
       <div class="grid gap-6 lg:grid-cols-[.72fr_1.28fr]">
         <aside class="odv-card overflow-hidden p-7">
-          <span class="text-xs font-black uppercase tracking-widest text-violet-600"
+          <span class="text-xs font-black uppercase tracking-widest text-indigo-600"
             >KURULUŞ PROFİLİ · 1/1</span
           >
           <h1 class="mt-3 text-3xl font-black">Denetime hazır bir güvenlik temeli kurun</h1>

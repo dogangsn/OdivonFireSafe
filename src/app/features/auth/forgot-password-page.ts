@@ -10,11 +10,11 @@ import { AuthStore } from '../../core/auth/auth-store';
     <section class="odv-card w-full max-w-md p-8 sm:p-10" aria-labelledby="reset-title">
       <a
         routerLink="/login"
-        class="mb-7 inline-flex items-center gap-2 text-sm font-bold text-violet-600"
+        class="mb-7 inline-flex items-center gap-2 text-sm font-bold text-indigo-600"
         ><span class="material-symbols-rounded directional-icon">arrow_back</span>Girişe dön</a
       >
       <span
-        class="grid size-14 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
+        class="grid size-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
         ><span class="material-symbols-rounded !text-3xl">lock_reset</span></span
       >
       <h1 id="reset-title" class="mb-2 mt-5 text-3xl font-black">Şifrenizi sıfırlayın</h1>

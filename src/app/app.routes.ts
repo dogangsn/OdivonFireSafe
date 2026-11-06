@@ -52,8 +52,7 @@ export const routes: Routes = [
       {
         path: 'overview',
         loadComponent: () =>
-          import('./features/workspace/fire-safe-page').then((m) => m.FireSafePage),
-        data: { view: 'overview' },
+          import('./features/overview/overview-page').then((m) => m.OverviewPage),
       },
       ...PRODUCT_NAVIGATION.map((item) => ({
         path: item.path,

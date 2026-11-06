@@ -23,7 +23,7 @@ import {
       />
       @if (loading()) {
         <div class="grid min-h-80 place-items-center">
-          <span class="material-symbols-rounded animate-spin text-5xl text-violet-600"
+          <span class="material-symbols-rounded animate-spin text-5xl text-indigo-600"
             >progress_activity</span
           >
         </div>
@@ -32,7 +32,7 @@ import {
       } @else {
         <section class="grid gap-5 lg:grid-cols-[1.4fr_.6fr]">
           <article
-            class="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-violet-950 to-indigo-950 p-7 text-white shadow-xl"
+            class="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-950 p-7 text-white shadow-xl"
           >
             <div class="flex flex-wrap items-start justify-between gap-5">
               <div>
@@ -70,7 +70,7 @@ import {
             </div>
           </article>
           <article class="odv-card p-6">
-            <span class="text-xs font-black text-violet-600">DÖNEM DURUMU</span>
+            <span class="text-xs font-black text-indigo-600">DÖNEM DURUMU</span>
             <h3 class="mt-3 text-2xl font-black">{{ status()?.daysLeft ?? '—' }} gün</h3>
             <p class="text-sm text-slate-500">
               {{
@@ -81,7 +81,7 @@ import {
             </p>
             <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                class="h-full w-2/3 rounded-full bg-gradient-to-r from-emerald-500 to-violet-500"
+                class="h-full w-2/3 rounded-full bg-gradient-to-r from-emerald-500 to-indigo-500"
               ></div>
             </div>
           </article>
@@ -115,7 +115,7 @@ import {
               <article
                 class="odv-card relative p-6"
                 [class.ring-2]="index === 1"
-                [class.ring-violet-500]="index === 1"
+                [class.ring-indigo-500]="index === 1"
               >
                 @if (entitlements()?.planId === plan.id) {
                   <span

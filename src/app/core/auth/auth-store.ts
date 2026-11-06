@@ -57,9 +57,10 @@ export class AuthStore {
     const session = await this.refreshProfile();
     return session?.emailVerified ?? false;
   }
-  logout() {
-    void this.identity.logout();
+  async logout() {
     this.clear();
+    this.hydration = Promise.resolve(null);
+    await this.identity.logout();
   }
   private async hydrate() {
     try {
@@ -67,6 +68,7 @@ export class AuthStore {
       const user = this.identity.user();
       if (!user) {
         this.clear();
+        this.hydration = undefined;
         return null;
       }
       const session = this.toSession(
@@ -77,6 +79,7 @@ export class AuthStore {
       return session;
     } catch {
       this.clear();
+      this.hydration = undefined;
       return null;
     }
   }
@@ -98,6 +101,8 @@ export class AuthStore {
   private persist(session: AppSession) {
     localStorage.setItem(this.storageKey, JSON.stringify(session));
     this.session.set(session);
+    // Guards read the cached hydration; keep it in step with the latest session.
+    this.hydration = Promise.resolve(session);
   }
   private restore(): AppSession | null {
     try {

@@ -8,10 +8,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
     <article class="odv-card mx-auto max-w-4xl p-7 sm:p-11">
       <a
         routerLink="/register"
-        class="inline-flex items-center gap-2 text-sm font-bold text-violet-600"
+        class="inline-flex items-center gap-2 text-sm font-bold text-indigo-600"
         ><span class="material-symbols-rounded directional-icon">arrow_back</span>Kayıt ekranına
         dön</a
-      ><span class="mt-8 block text-xs font-black uppercase tracking-[.18em] text-violet-600"
+      ><span class="mt-8 block text-xs font-black uppercase tracking-[.18em] text-indigo-600"
         >ODIVON FIRESAFE</span
       >
       <h1 class="mt-3 text-3xl font-black">

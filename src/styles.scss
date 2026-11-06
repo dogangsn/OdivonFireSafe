@@ -9,10 +9,12 @@
 :root.dark { color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { min-height: 100%; margin: 0; }
-body { background: radial-gradient(circle at 82% -10%, rgb(124 58 237 / .09), transparent 28rem), #f8fafc; color: #0f172a; }
-.dark body { background: radial-gradient(circle at 82% -10%, rgb(124 58 237 / .16), transparent 30rem), #0b1120; color: #f8fafc; }
-button, input, select { font: inherit; }
-button { cursor: pointer; border: 0; }
+body { background: radial-gradient(circle at 82% -10%, rgb(99 102 241 / .08), transparent 28rem), #f8fafc; color: #0f172a; }
+.dark body { background: radial-gradient(circle at 82% -10%, rgb(99 102 241 / .14), transparent 30rem), #0b1120; color: #f8fafc; }
+@layer base {
+  button, input, select { font: inherit; }
+  button { cursor: pointer; border: 0; }
+}
 .material-symbols-rounded {
   display: inline-block;
   overflow: hidden;
@@ -35,6 +37,6 @@ button { cursor: pointer; border: 0; }
 .rtl .directional-icon { transform: scaleX(-1); }
 
 .odv-swal-popup { border-radius: 1rem !important; font-family: "Plus Jakarta Sans", sans-serif !important; }
-.odv-swal-confirm { border-radius: .75rem !important; background: #6d28d9 !important; }
+.odv-swal-confirm { border-radius: .75rem !important; background: #4f46e5 !important; }
 .odv-swal-danger { border-radius: .75rem !important; background: #dc2626 !important; }
 .odv-swal-cancel { border-radius: .75rem !important; background: #e2e8f0 !important; color: #334155 !important; }

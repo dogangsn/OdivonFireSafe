@@ -10,49 +10,6 @@ export interface DomainNavigationItem {
 }
 
 const NAVIGATION: Record<string, readonly DomainNavigationItem[]> = {
-  fgas: [
-    {
-      key: 'equipment',
-      path: 'equipment',
-      icon: 'precision_manufacturing',
-      label: 'Ekipman Envanteri',
-      title: 'Ekipman Envanteri',
-      description:
-        'Soğutma ve iklimlendirme ekipmanlarını, gaz türlerini ve kapasite bilgilerini yönetin.',
-    },
-    {
-      key: 'leak-checks',
-      path: 'leak-checks',
-      icon: 'troubleshoot',
-      label: 'Sızıntı Kontrolleri',
-      title: 'Sızıntı Kontrolleri',
-      description: 'Yasal kontrol periyotlarını, sonuçları ve saha kanıtlarını takip edin.',
-    },
-    {
-      key: 'gas-movements',
-      path: 'gas-movements',
-      icon: 'swap_horiz',
-      label: 'Gaz Hareketleri',
-      title: 'Gaz Hareket Defteri',
-      description: 'Dolum, geri kazanım, bertaraf ve stok hareketlerini kayıt altında tutun.',
-    },
-    {
-      key: 'technicians',
-      path: 'technicians',
-      icon: 'engineering',
-      label: 'Teknisyenler',
-      title: 'Teknisyen Yönetimi',
-      description: 'Yetkinlik, sertifika ve görev atamalarını tek merkezden yönetin.',
-    },
-    {
-      key: 'inspections',
-      path: 'inspections',
-      icon: 'verified',
-      label: 'Denetim ve Raporlar',
-      title: 'Denetim ve Raporlar',
-      description: 'Denetime hazır kayıt paketleri ve uyum raporları oluşturun.',
-    },
-  ],
   'fire-safe': [
     {
       key: 'equipment',
@@ -93,48 +50,6 @@ const NAVIGATION: Record<string, readonly DomainNavigationItem[]> = {
       label: 'Denetim ve Raporlar',
       title: 'Denetim ve Raporlar',
       description: 'Lokasyon bazlı uygunluk raporları ve denetim paketleri hazırlayın.',
-    },
-  ],
-  'food-label': [
-    {
-      key: 'products',
-      path: 'products',
-      icon: 'inventory_2',
-      label: 'Ürünler',
-      title: 'Ürün Portföyü',
-      description: 'Ürün kartlarını, pazarları ve etiket sürümlerini yönetin.',
-    },
-    {
-      key: 'recipes',
-      path: 'recipes',
-      icon: 'menu_book',
-      label: 'Reçeteler',
-      title: 'Reçete Yönetimi',
-      description: 'Bileşenleri, oranları ve hammadde kaynaklarını kayıt altında tutun.',
-    },
-    {
-      key: 'allergens',
-      path: 'allergens',
-      icon: 'warning',
-      label: 'Alerjen Kontrolü',
-      title: 'Alerjen Kontrolü',
-      description: 'Alerjen çapraz kontrollerini ve zorunlu vurguları doğrulayın.',
-    },
-    {
-      key: 'nutrition',
-      path: 'nutrition',
-      icon: 'monitoring',
-      label: 'Besin Değerleri',
-      title: 'Besin Değeri Beyanı',
-      description: 'Enerji ve besin değerlerini reçeteden hesaplayıp karşılaştırın.',
-    },
-    {
-      key: 'approvals',
-      path: 'approvals',
-      icon: 'verified_user',
-      label: 'Etiket Onayları',
-      title: 'Etiket Onayları',
-      description: 'Pazar bazlı zorunlu beyanları ve onay akışlarını yönetin.',
     },
   ],
 };

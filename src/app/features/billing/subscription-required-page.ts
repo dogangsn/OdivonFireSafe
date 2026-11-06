@@ -8,7 +8,7 @@ import { AuthStore } from '../../core/auth/auth-store';
   template: `<main class="mx-auto grid min-h-[70vh] max-w-4xl place-items-center px-4 py-10">
     <section class="odv-card w-full overflow-hidden">
       <div
-        class="grid gap-8 bg-gradient-to-br from-slate-950 via-rose-950 to-violet-950 p-8 text-white md:grid-cols-[1fr_auto] md:items-center"
+        class="grid gap-8 bg-gradient-to-br from-slate-950 via-rose-950 to-indigo-950 p-8 text-white md:grid-cols-[1fr_auto] md:items-center"
       >
         <div>
           <span class="odv-badge-warning">ERİŞİM BEKLEMEDE</span>
@@ -33,7 +33,7 @@ import { AuthStore } from '../../core/auth/auth-store';
         </div>
         <div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
           <strong class="block text-sm">Destek</strong
-          ><a class="mt-1 block text-sm font-bold text-violet-600" href="mailto:destek@odivon.com"
+          ><a class="mt-1 block text-sm font-bold text-indigo-600" href="mailto:destek@odivon.com"
             >destek@odivon.com</a
           >
         </div>

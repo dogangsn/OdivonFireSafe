@@ -70,7 +70,7 @@ import { RoleOption, SettingsApi, TenantUser } from './settings.api';
         </div>
         @if (loading()) {
           <div class="grid min-h-52 place-items-center">
-            <span class="material-symbols-rounded animate-spin text-4xl text-violet-600"
+            <span class="material-symbols-rounded animate-spin text-4xl text-indigo-600"
               >progress_activity</span
             >
           </div>

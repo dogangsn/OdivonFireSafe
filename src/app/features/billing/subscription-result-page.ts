@@ -7,7 +7,7 @@ import { BillingApi } from './billing.api';
   template: `<div class="mx-auto max-w-2xl py-10">
     <section class="odv-card p-8 text-center sm:p-11" aria-live="polite">
       @if (loading()) {
-        <span class="material-symbols-rounded animate-spin !text-5xl text-violet-600"
+        <span class="material-symbols-rounded animate-spin !text-5xl text-indigo-600"
           >progress_activity</span
         >
         <h1 class="mt-5 text-2xl font-black">Ödeme doğrulanıyor</h1>

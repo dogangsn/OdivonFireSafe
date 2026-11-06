@@ -2,24 +2,46 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
+import { toLocalInput } from '../../core/time/local-datetime';
 import { PRODUCT_NAVIGATION } from '../../domain/domain-navigation';
+import { isOverdue } from '../../domain/fire-safe-insights';
+import {
+  KIND_ICONS,
+  KIND_LABELS,
+  RISK_LABELS,
+  RISK_TONES,
+  STATUS_LABELS,
+  STATUS_TONES,
+  badgeClass,
+} from '../../domain/fire-safe-labels';
+import { EmptyState } from '../../shared/ui/empty-state';
 import { PageHeader } from '../../shared/ui/page-header';
 import { SlideOver } from '../../shared/ui/slide-over';
 import {
   FireSafeApi,
-  FireSafeDashboard,
   FireSafeKind,
   FireSafeRecord,
+  FireSafeStatus,
   RecordDraft,
 } from './fire-safe.api';
+import { downloadReport } from './report-export';
 
-const KINDS: Record<string, FireSafeKind> = {
+/** Route section → record kind. `reports` lists every kind. */
+const KINDS: Record<string, FireSafeKind | null> = {
   equipment: 'equipment',
   'periodic-checks': 'periodic-check',
   nonconformities: 'nonconformity',
   'emergency-plans': 'emergency-plan',
-  reports: 'periodic-check',
+  reports: null,
 };
+const STATUS_FILTERS: readonly (FireSafeStatus | null)[] = [
+  null,
+  'pending',
+  'active',
+  'action-required',
+  'completed',
+  'closed',
+];
 const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
   kind,
   name: '',
@@ -39,169 +61,303 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
 
 @Component({
   selector: 'app-fire-safe-page',
-  imports: [PageHeader, SlideOver, DatePipe],
+  imports: [PageHeader, SlideOver, EmptyState, DatePipe],
   template: `
-    <div class="space-y-6">
+    <div class="space-y-5">
       <app-page-header
-        eyebrow="YANGIN GÜVENLİĞİ OPERASYON MERKEZİ"
+        [eyebrow]="reports ? 'DENETİME HAZIR KAYITLAR' : 'YANGIN GÜVENLİĞİ KAYITLARI'"
+        [icon]="domain?.icon ?? 'inventory_2'"
         [title]="title"
         [description]="description"
       >
         <div actions class="flex flex-wrap gap-2">
-          <button type="button" class="odv-btn-soft" (click)="downloadReport()">
-            <span class="material-symbols-rounded">download</span>Denetim paketi
-          </button>
-          @if (!overview) {
+          @if (reports) {
+            <button
+              type="button"
+              class="odv-btn-ghost"
+              (click)="exportReport('csv')"
+              [disabled]="exporting()"
+            >
+              <span class="material-symbols-rounded" aria-hidden="true">table_view</span>Excel (CSV)
+            </button>
+            <button
+              type="button"
+              class="odv-btn-primary"
+              (click)="exportReport('json')"
+              [disabled]="exporting()"
+            >
+              <span class="material-symbols-rounded" aria-hidden="true">download</span>Denetim
+              paketi
+            </button>
+          } @else {
             <button type="button" class="odv-btn-primary" (click)="openCreate()">
-              <span class="material-symbols-rounded">add</span>Yeni kayıt
+              <span class="material-symbols-rounded" aria-hidden="true">add</span>Yeni kayıt
             </button>
           }
         </div>
       </app-page-header>
 
       @if (error()) {
-        <div class="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700" role="alert">
-          {{ error() }} <button class="ms-3 underline" (click)="load()">Tekrar dene</button>
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+          role="alert"
+        >
+          {{ error() }}
+          <button type="button" class="odv-btn-ghost !min-h-9" (click)="load()">Tekrar dene</button>
         </div>
       }
-      @if (overview) {
-        <section
-          class="odv-card overflow-hidden bg-gradient-to-br from-slate-950 via-rose-950 to-violet-950 p-7 text-white lg:p-9"
-        >
-          <div class="grid gap-7 lg:grid-cols-[1.3fr_1fr] lg:items-center">
-            <div>
-              <span class="odv-badge-success">CANLI UYUM RADARI</span>
-              <h2 class="mb-3 mt-5 text-3xl font-black">Tesis riskleri tek merkezde</h2>
-              <p class="m-0 max-w-2xl text-sm leading-7 text-slate-300">
-                Ekipman, kontrol, uygunsuzluk ve acil durum planlarını değişmez denetim iziyle
-                yönetin.
-              </p>
-            </div>
-            <div class="grid grid-cols-3 gap-3 text-center">
-              <div class="rounded-2xl bg-white/10 p-4">
-                <strong class="block text-3xl">%{{ dashboard()?.complianceScore ?? 100 }}</strong
-                ><span class="text-xs text-slate-300">Uyum</span>
-              </div>
-              <div class="rounded-2xl bg-white/10 p-4">
-                <strong class="block text-3xl">{{ dashboard()?.dueSoon ?? 0 }}</strong
-                ><span class="text-xs text-slate-300">30 gün</span>
-              </div>
-              <div class="rounded-2xl bg-white/10 p-4">
-                <strong class="block text-3xl">{{ dashboard()?.actionRequired ?? 0 }}</strong
-                ><span class="text-xs text-slate-300">Aksiyon</span>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          @for (metric of metrics(); track metric.label) {
-            <article class="odv-card p-5">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-black uppercase tracking-wider text-slate-500">{{
-                  metric.label
-                }}</span
-                ><span class="material-symbols-rounded text-violet-600">{{ metric.icon }}</span>
-              </div>
-              <strong class="mt-4 block text-4xl font-black">{{ metric.value }}</strong
-              ><span class="mt-2 block text-xs text-slate-500">{{ metric.note }}</span>
-            </article>
-          }
-        </section>
-      }
 
-      <section class="odv-card overflow-hidden">
-        <div
-          class="flex flex-col gap-4 border-b border-slate-200 p-5 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between"
-        >
-          <div class="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+      <!-- Filter bar -->
+      <section
+        class="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        aria-label="Filtreler"
+      >
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label class="relative block flex-1">
+            <span class="sr-only">Kayıt ara</span>
+            <span
+              class="material-symbols-rounded pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+              >search</span
+            >
+            <input
+              class="odv-input !bg-slate-50 ps-10 dark:!bg-slate-800/60"
+              type="search"
+              placeholder="Ad, kod, lokasyon veya sorumlu ara…"
+              [value]="search()"
+              (input)="search.set($any($event.target).value); scheduleLoad()"
+            />
+          </label>
+          <div
+            class="inline-flex shrink-0 rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
+            role="group"
+            aria-label="Kayıt görünümü"
+          >
             <button
-              class="rounded-lg px-4 py-2 text-xs font-bold"
-              [class.bg-white]="!archived()"
+              type="button"
+              class="rounded-lg px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+              [class]="
+                !archived()
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : ''
+              "
+              [attr.aria-pressed]="!archived()"
               (click)="setArchived(false)"
             >
-              Aktif</button
-            ><button
-              class="rounded-lg px-4 py-2 text-xs font-bold"
-              [class.bg-white]="archived()"
+              Aktif
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+              [class]="
+                archived()
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : ''
+              "
+              [attr.aria-pressed]="archived()"
               (click)="setArchived(true)"
             >
               Arşiv
             </button>
           </div>
-          <label class="relative block lg:w-96"
-            ><span class="sr-only">Kayıt ara</span
-            ><span
-              class="material-symbols-rounded pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400"
-              >search</span
-            ><input
-              class="odv-input ps-10"
-              type="search"
-              placeholder="Ad, kod, lokasyon veya sorumlu ara…"
-              [value]="search()"
-              (input)="search.set($any($event.target).value); scheduleLoad()"
-          /></label>
+        </div>
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Durum filtresi">
+          @for (status of statusFilters; track status) {
+            <button
+              type="button"
+              class="odv-chip"
+              [attr.aria-pressed]="statusFilter() === status"
+              (click)="setStatus(status)"
+            >
+              {{ status ? statusLabel(status) : 'Tümü' }}
+            </button>
+          }
+          <button
+            type="button"
+            class="odv-chip"
+            [attr.aria-pressed]="overdueOnly()"
+            (click)="overdueOnly.update((v) => !v)"
+          >
+            <span class="material-symbols-rounded !text-base text-rose-500" aria-hidden="true"
+              >event_busy</span
+            >
+            Süresi geçmiş
+          </button>
+        </div>
+      </section>
+
+      <section class="odv-card overflow-hidden" aria-label="Kayıtlar">
+        <div
+          class="flex items-center justify-between border-b border-slate-100 px-5 py-3 text-xs text-slate-500 dark:border-slate-800"
+        >
+          <span>
+            @if (!loading()) {
+              <strong class="text-slate-900 dark:text-white">{{ visible().length }}</strong> kayıt
+              gösteriliyor
+            }
+          </span>
+          @if (overdueCount()) {
+            <span class="odv-badge-danger">{{ overdueCount() }} kontrolün süresi geçmiş</span>
+          }
         </div>
         @if (loading()) {
-          <div class="grid min-h-64 place-items-center">
-            <span class="material-symbols-rounded animate-spin text-4xl text-violet-600"
-              >progress_activity</span
-            >
+          <div class="space-y-3 p-5" aria-busy="true" aria-label="Yükleniyor">
+            @for (i of [1, 2, 3, 4, 5]; track i) {
+              <span class="odv-skeleton block h-14"></span>
+            }
           </div>
+        } @else if (!visible().length) {
+          <app-empty-state
+            [icon]="domain?.icon ?? 'inventory_2'"
+            [title]="hasFilters() ? 'Filtrelere uyan kayıt yok' : 'Bu görünümde kayıt yok'"
+            [body]="
+              hasFilters()
+                ? 'Arama veya filtreleri değiştirerek tekrar deneyin.'
+                : 'İlk kaydı oluşturarak izlenebilirliği başlatın.'
+            "
+          >
+            @if (hasFilters()) {
+              <button type="button" class="odv-btn-soft" (click)="clearFilters()">
+                Filtreleri temizle
+              </button>
+            } @else if (!reports && !archived()) {
+              <button type="button" class="odv-btn-primary" (click)="openCreate()">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>Yeni kayıt
+              </button>
+            }
+          </app-empty-state>
         } @else {
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[940px]">
-              <thead>
+          <!-- Desktop table -->
+          <div class="hidden overflow-x-auto md:block">
+            <table class="w-full min-w-[880px] border-collapse">
+              <thead class="bg-slate-50/80 dark:bg-slate-800/40">
                 <tr>
                   <th class="odv-th">Kayıt</th>
-                  <th class="odv-th">Tür</th>
+                  @if (!kind) {
+                    <th class="odv-th">Tür</th>
+                  }
                   <th class="odv-th">Lokasyon</th>
                   <th class="odv-th">Risk</th>
-                  <th class="odv-th">Kontrol tarihi</th>
+                  <th class="odv-th">Sonraki kontrol</th>
                   <th class="odv-th">Durum</th>
                   <th class="odv-th"><span class="sr-only">İşlem</span></th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of records(); track row.id) {
-                  <tr class="hover:bg-violet-50/50 dark:hover:bg-slate-800">
+                @for (row of visible(); track row.id) {
+                  <tr
+                    class="cursor-pointer transition-colors hover:bg-indigo-50/40 dark:hover:bg-slate-800/60"
+                    (click)="openEdit(row)"
+                  >
                     <td class="odv-td">
-                      <strong class="block">{{ row.name }}</strong
-                      ><span class="text-xs text-slate-500">{{
-                        row.code || row.facilityCode || 'Kod yok'
-                      }}</span>
+                      <span class="flex items-center gap-3">
+                        <span
+                          class="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                        >
+                          <span class="material-symbols-rounded !text-lg" aria-hidden="true">{{
+                            kindIcon(row.kind)
+                          }}</span>
+                        </span>
+                        <span class="min-w-0">
+                          <strong class="block truncate">{{ row.name }}</strong>
+                          <span class="text-xs text-slate-500">{{
+                            row.code || row.facilityCode || 'Kod yok'
+                          }}</span>
+                        </span>
+                      </span>
                     </td>
-                    <td class="odv-td">{{ kindLabel(row.kind) }}</td>
-                    <td class="odv-td">{{ row.location }}</td>
+                    @if (!kind) {
+                      <td class="odv-td text-slate-600 dark:text-slate-300">
+                        {{ kindLabel(row.kind) }}
+                      </td>
+                    }
+                    <td class="odv-td text-slate-600 dark:text-slate-300">{{ row.location }}</td>
                     <td class="odv-td">
-                      <span [class]="riskClass(row.riskLevel)">{{ riskLabel(row.riskLevel) }}</span>
+                      @if (row.riskLevel) {
+                        <span [class]="riskClass(row)">{{ riskLabel(row) }}</span>
+                      } @else {
+                        <span class="text-xs text-slate-400">—</span>
+                      }
                     </td>
                     <td class="odv-td">
-                      {{ row.inspectionDueAt ? (row.inspectionDueAt | date: 'dd.MM.yyyy') : '—' }}
+                      @if (row.inspectionDueAt) {
+                        <span
+                          [class]="overdue(row) ? 'font-bold text-rose-600 dark:text-rose-400' : ''"
+                        >
+                          {{ row.inspectionDueAt | date: 'dd.MM.yyyy' }}
+                        </span>
+                        @if (overdue(row)) {
+                          <span
+                            class="mt-0.5 block text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                            >Süresi geçti</span
+                          >
+                        }
+                      } @else {
+                        <span class="text-xs text-slate-400">—</span>
+                      }
                     </td>
                     <td class="odv-td">
-                      <span [class]="statusClass(row.status)">{{ statusLabel(row.status) }}</span>
+                      <span [class]="statusClass(row)">{{ statusLabel(row.status) }}</span>
                     </td>
                     <td class="odv-td text-end">
-                      <button class="odv-icon-btn" aria-label="Kaydı aç" (click)="openEdit(row)">
+                      <button
+                        type="button"
+                        class="odv-icon-btn"
+                        [attr.aria-label]="row.name + ' kaydını aç'"
+                        (click)="$event.stopPropagation(); openEdit(row)"
+                      >
                         <span class="material-symbols-rounded">edit</span>
                       </button>
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="7" class="p-12 text-center">
-                      <span class="material-symbols-rounded text-5xl text-slate-300"
-                        >fire_extinguisher</span
-                      ><strong class="mt-3 block">Bu görünümde kayıt yok</strong
-                      ><span class="text-sm text-slate-500"
-                        >İlk kaydı oluşturarak izlenebilirliği başlatın.</span
-                      >
                     </td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
+          <!-- Mobile cards -->
+          <ul class="m-0 list-none divide-y divide-slate-100 p-0 dark:divide-slate-800 md:hidden">
+            @for (row of visible(); track row.id) {
+              <li>
+                <button
+                  type="button"
+                  class="block w-full bg-transparent p-4 text-start"
+                  (click)="openEdit(row)"
+                >
+                  <span class="flex items-start justify-between gap-3">
+                    <span class="min-w-0">
+                      <strong class="block truncate text-sm">{{ row.name }}</strong>
+                      <span class="block truncate text-xs text-slate-500"
+                        >{{ kindLabel(row.kind) }} · {{ row.location }}</span
+                      >
+                    </span>
+                    <span [class]="statusClass(row)">{{ statusLabel(row.status) }}</span>
+                  </span>
+                  <span class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    @if (row.riskLevel) {
+                      <span [class]="riskClass(row)">{{ riskLabel(row) }}</span>
+                    }
+                    @if (row.inspectionDueAt) {
+                      <span [class]="overdue(row) ? 'font-bold text-rose-600' : ''">
+                        Kontrol: {{ row.inspectionDueAt | date: 'dd.MM.yyyy' }}
+                      </span>
+                    }
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+          @if (nextCursor()) {
+            <div class="border-t border-slate-100 p-4 text-center dark:border-slate-800">
+              <button
+                type="button"
+                class="odv-btn-soft"
+                (click)="loadMore()"
+                [disabled]="loadingMore()"
+              >
+                {{ loadingMore() ? 'Yükleniyor…' : 'Daha fazla göster' }}
+              </button>
+            </div>
+          }
         }
       </section>
     </div>
@@ -213,32 +369,41 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
       [submitting]="saving()"
       [title]="editing() ? 'Kaydı düzenle' : 'Yeni yangın güvenliği kaydı'"
       eyebrow="KANITLI OPERASYON KAYDI"
-      icon="fire_extinguisher"
+      [icon]="kindIcon(draft().kind)"
       submitLabel="Kaydet"
       (closed)="drawerOpen.set(false)"
       (submitted)="save()"
     >
       @if (saveError()) {
-        <div class="rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-700" role="alert">
+        <div
+          class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+          role="alert"
+        >
           {{ saveError() }}
         </div>
       }
       <section class="odv-card p-5">
-        <h3 class="mt-0">Temel bilgiler</h3>
+        <h3 class="mb-4 mt-0 text-sm font-black">Temel bilgiler</h3>
         <div class="grid gap-4 sm:grid-cols-2">
           <label
             ><span class="mb-1 block text-xs font-bold">Kayıt türü *</span
             ><select
               class="odv-input"
               [value]="draft().kind"
+              [disabled]="!!editing()"
               (change)="patch('kind', $any($event.target).value)"
             >
               <option value="equipment">Yangın ekipmanı</option>
               <option value="periodic-check">Periyodik kontrol</option>
               <option value="nonconformity">Uygunsuzluk</option>
               <option value="emergency-plan">Acil durum planı</option>
-            </select></label
-          >
+            </select>
+            @if (editing()) {
+              <span class="mt-1 block text-[11px] text-slate-500"
+                >Kayıt türü oluşturulduktan sonra değiştirilemez.</span
+              >
+            }
+          </label>
           <label
             ><span class="mb-1 block text-xs font-bold">Durum *</span
             ><select
@@ -257,6 +422,7 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
             ><span class="mb-1 block text-xs font-bold">Kayıt adı *</span
             ><input
               class="odv-input"
+              required
               [value]="draft().name"
               (input)="patch('name', $any($event.target).value)"
           /></label>
@@ -264,9 +430,17 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
             ><span class="mb-1 block text-xs font-bold">Lokasyon *</span
             ><input
               class="odv-input"
+              required
+              list="location-options"
               [value]="draft().location"
               (input)="patch('location', $any($event.target).value)"
-          /></label>
+            />
+            <datalist id="location-options">
+              @for (location of knownLocations(); track location) {
+                <option [value]="location"></option>
+              }
+            </datalist>
+          </label>
           <label
             ><span class="mb-1 block text-xs font-bold">Tesis kodu</span
             ><input
@@ -291,7 +465,7 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
         </div>
       </section>
       <section class="odv-card p-5">
-        <h3 class="mt-0">Risk, tarih ve sorumluluk</h3>
+        <h3 class="mb-4 mt-0 text-sm font-black">Risk, tarih ve sorumluluk</h3>
         <div class="grid gap-4 sm:grid-cols-2">
           <label
             ><span class="mb-1 block text-xs font-bold">Risk seviyesi</span
@@ -330,19 +504,21 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
               [value]="draft().completedAt"
               (input)="patch('completedAt', $any($event.target).value)"
           /></label>
-          <label
-            ><span class="mb-1 block text-xs font-bold">Kontrol sonucu</span
-            ><select
-              class="odv-input"
-              [value]="draft().result"
-              (change)="patch('result', $any($event.target).value)"
+          @if (draft().kind === 'periodic-check') {
+            <label
+              ><span class="mb-1 block text-xs font-bold">Kontrol sonucu</span
+              ><select
+                class="odv-input"
+                [value]="draft().result"
+                (change)="patch('result', $any($event.target).value)"
+              >
+                <option value="">Seçilmedi</option>
+                <option value="pass">Uygun</option>
+                <option value="conditional">Şartlı uygun</option>
+                <option value="fail">Uygun değil</option>
+              </select></label
             >
-              <option value="">Seçilmedi</option>
-              <option value="pass">Uygun</option>
-              <option value="conditional">Şartlı uygun</option>
-              <option value="fail">Uygun değil</option>
-            </select></label
-          >
+          }
           <label
             ><span class="mb-1 block text-xs font-bold">Belge referansları</span
             ><input
@@ -350,9 +526,12 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
               placeholder="Rapor-24, Foto-18"
               [value]="draft().documentRefsText"
               (input)="patch('documentRefsText', $any($event.target).value)"
-          /></label>
+            /><span class="mt-1 block text-[11px] text-slate-500">Virgülle ayırın.</span></label
+          >
           <label class="sm:col-span-2"
-            ><span class="mb-1 block text-xs font-bold">Bulgular ve düzeltici faaliyet</span
+            ><span class="mb-1 block text-xs font-bold">{{
+              draft().kind === 'nonconformity' ? 'Bulgu ve düzeltici faaliyet' : 'Notlar'
+            }}</span
             ><textarea
               class="odv-input min-h-28"
               [value]="draft().notes"
@@ -362,12 +541,21 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
         </div>
       </section>
       @if (editing(); as row) {
-        <div class="flex justify-between">
-          <button type="button" class="odv-btn-ghost text-rose-600" (click)="toggleArchive(row)">
-            {{ row.archivedAt ? 'Arşivden çıkar' : 'Arşivle' }}</button
-          ><span class="text-xs text-slate-500"
-            >Sürüm {{ row.version }} · değişiklikler audit kaydına işlenir</span
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            class="odv-btn-ghost !text-rose-600 dark:!text-rose-400"
+            [disabled]="saving()"
+            (click)="toggleArchive(row)"
           >
+            <span class="material-symbols-rounded" aria-hidden="true">{{
+              row.archivedAt ? 'unarchive' : 'archive'
+            }}</span>
+            {{ row.archivedAt ? 'Arşivden çıkar' : 'Arşivle' }}
+          </button>
+          <span class="text-xs text-slate-500">
+            Sürüm {{ row.version }} · son güncelleme {{ row.updatedAt | date: 'dd.MM.yyyy HH:mm' }}
+          </span>
         </div>
       }
     </app-slide-over>
@@ -376,75 +564,87 @@ const emptyDraft = (kind: FireSafeKind): RecordDraft => ({
 export class FireSafePage {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(FireSafeApi);
-  readonly overview = this.route.snapshot.data['view'] === 'overview';
   private readonly section = String(this.route.snapshot.data['section'] ?? '');
-  readonly kind = this.overview ? null : (KINDS[this.section] ?? 'equipment');
+  readonly reports = this.section === 'reports';
+  readonly kind: FireSafeKind | null = this.section in KINDS ? KINDS[this.section] : 'equipment';
   readonly domain = PRODUCT_NAVIGATION.find((item) => item.key === this.section);
-  readonly title = this.overview
-    ? 'FireSafe Genel Bakış'
-    : (this.domain?.title ?? 'Yangın Güvenliği Kayıtları');
-  readonly description = this.overview
-    ? 'Tesis, ekipman, kontrol ve uygunsuzluk risklerini canlı operasyon verileriyle yönetin.'
-    : (this.domain?.description ?? 'Denetlenebilir yangın güvenliği kayıtları.');
+  readonly title = this.domain?.title ?? 'Yangın Güvenliği Kayıtları';
+  readonly description = this.domain?.description ?? 'Denetlenebilir yangın güvenliği kayıtları.';
+  readonly statusFilters = STATUS_FILTERS;
+
   readonly records = signal<FireSafeRecord[]>([]);
-  readonly dashboard = signal<FireSafeDashboard | null>(null);
+  readonly nextCursor = signal<string | null>(null);
   readonly loading = signal(true);
+  readonly loadingMore = signal(false);
+  readonly exporting = signal(false);
   readonly error = signal('');
   readonly search = signal('');
   readonly archived = signal(false);
+  readonly statusFilter = signal<FireSafeStatus | null>(null);
+  readonly overdueOnly = signal(false);
   readonly drawerOpen = signal(false);
   readonly saving = signal(false);
   readonly saveError = signal('');
   readonly editing = signal<FireSafeRecord | null>(null);
   readonly draft = signal<RecordDraft>(emptyDraft(this.kind ?? 'equipment'));
   readonly dirty = signal(false);
+
+  readonly visible = computed(() =>
+    this.overdueOnly() ? this.records().filter((row) => isOverdue(row)) : this.records(),
+  );
+  readonly overdueCount = computed(() => this.records().filter((row) => isOverdue(row)).length);
+  readonly hasFilters = computed(
+    () => !!this.search().trim() || this.statusFilter() !== null || this.overdueOnly(),
+  );
+  readonly knownLocations = computed(() =>
+    [...new Set(this.records().map((row) => row.location))].sort((a, b) =>
+      a.localeCompare(b, 'tr'),
+    ),
+  );
+
   private timer?: ReturnType<typeof setTimeout>;
-  readonly metrics = computed(() => {
-    const d = this.dashboard();
-    return [
-      {
-        label: 'Toplam kayıt',
-        value: d?.total ?? 0,
-        icon: 'inventory_2',
-        note: 'Aktif güvenlik kanıtları',
-      },
-      {
-        label: 'Yangın ekipmanı',
-        value: d?.equipment ?? 0,
-        icon: 'fire_extinguisher',
-        note: 'Takip edilen ekipman',
-      },
-      {
-        label: 'Açık uygunsuzluk',
-        value: d?.openNonconformities ?? 0,
-        icon: 'warning',
-        note: 'Kapanış bekleyen risk',
-      },
-      {
-        label: 'Acil durum planı',
-        value: d?.emergencyPlans ?? 0,
-        icon: 'emergency',
-        note: 'Yürürlükteki planlar',
-      },
-    ];
-  });
+  /** Ignores responses from superseded requests (e.g. fast typing in search). */
+  private requestId = 0;
+
   constructor() {
     void this.load();
   }
+
   async load() {
+    const id = ++this.requestId;
     this.loading.set(true);
     this.error.set('');
     try {
-      const [list, dashboard] = await Promise.all([
-        this.api.list(this.kind, this.archived(), this.search()),
-        this.api.dashboard(),
-      ]);
-      this.records.set(list.items);
-      this.dashboard.set(dashboard);
+      const page = await this.api.list(this.kind, this.archived(), this.search(), {
+        status: this.statusFilter(),
+      });
+      if (id !== this.requestId) return;
+      this.records.set(page.items);
+      this.nextCursor.set(page.nextCursor ?? null);
+    } catch (e) {
+      if (id === this.requestId)
+        this.error.set(e instanceof Error ? e.message : 'Kayıtlar alınamadı.');
+    } finally {
+      if (id === this.requestId) this.loading.set(false);
+    }
+  }
+  async loadMore() {
+    const cursor = this.nextCursor();
+    if (!cursor) return;
+    const id = this.requestId;
+    this.loadingMore.set(true);
+    try {
+      const page = await this.api.list(this.kind, this.archived(), this.search(), {
+        status: this.statusFilter(),
+        cursor,
+      });
+      if (id !== this.requestId) return;
+      this.records.update((rows) => [...rows, ...page.items]);
+      this.nextCursor.set(page.nextCursor ?? null);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Kayıtlar alınamadı.');
     } finally {
-      this.loading.set(false);
+      this.loadingMore.set(false);
     }
   }
   scheduleLoad() {
@@ -453,6 +653,16 @@ export class FireSafePage {
   }
   setArchived(value: boolean) {
     this.archived.set(value);
+    void this.load();
+  }
+  setStatus(value: FireSafeStatus | null) {
+    this.statusFilter.set(value);
+    void this.load();
+  }
+  clearFilters() {
+    this.search.set('');
+    this.statusFilter.set(null);
+    this.overdueOnly.set(false);
     void this.load();
   }
   openCreate() {
@@ -469,12 +679,12 @@ export class FireSafePage {
       name: row.name,
       location: row.location,
       facilityCode: row.facilityCode ?? '',
-      inspectionDueAt: this.localDate(row.inspectionDueAt),
+      inspectionDueAt: toLocalInput(row.inspectionDueAt),
       code: row.code ?? '',
       category: row.category ?? '',
       riskLevel: row.riskLevel ?? '',
       responsibleName: row.responsibleName ?? '',
-      completedAt: this.localDate(row.completedAt),
+      completedAt: toLocalInput(row.completedAt),
       result: row.result ?? '',
       notes: row.notes ?? '',
       documentRefsText: row.documentRefs.join(', '),
@@ -490,8 +700,8 @@ export class FireSafePage {
   }
   async save() {
     const draft = this.draft();
-    if (!draft.name.trim() || !draft.location.trim()) {
-      this.saveError.set('Kayıt adı ve lokasyon zorunludur.');
+    if (draft.name.trim().length < 2 || draft.location.trim().length < 2) {
+      this.saveError.set('Kayıt adı ve lokasyon en az 2 karakter olmalıdır.');
       return;
     }
     this.saving.set(true);
@@ -517,70 +727,56 @@ export class FireSafePage {
       showCancelButton: true,
       confirmButtonText: 'Onayla',
       cancelButtonText: 'Vazgeç',
-      customClass: { confirmButton: 'odv-btn-primary', cancelButton: 'odv-btn-ghost' },
-      buttonsStyling: false,
+      customClass: {
+        popup: 'odv-swal-popup',
+        confirmButton: row.archivedAt ? 'odv-swal-confirm' : 'odv-swal-danger',
+        cancelButton: 'odv-swal-cancel',
+      },
     });
     if (!result.isConfirmed) return;
-    if (row.archivedAt) await this.api.restore(row.id);
-    else await this.api.archive(row.id);
-    this.dirty.set(false);
-    this.drawerOpen.set(false);
-    await this.load();
-  }
-  async downloadReport() {
+    this.saving.set(true);
+    this.saveError.set('');
     try {
-      const report = await this.api.report();
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `firesafe-denetim-paketi-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      if (row.archivedAt) await this.api.restore(row.id);
+      else await this.api.archive(row.id);
+      this.dirty.set(false);
+      this.drawerOpen.set(false);
+      await this.load();
     } catch (e) {
-      this.error.set(e instanceof Error ? e.message : 'Rapor oluşturulamadı.');
+      this.saveError.set(e instanceof Error ? e.message : 'İşlem tamamlanamadı.');
+    } finally {
+      this.saving.set(false);
     }
   }
+  async exportReport(format: 'json' | 'csv') {
+    this.exporting.set(true);
+    try {
+      downloadReport(await this.api.report(), format);
+    } catch (e) {
+      this.error.set(e instanceof Error ? e.message : 'Rapor oluşturulamadı.');
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+  overdue(row: FireSafeRecord) {
+    return isOverdue(row);
+  }
+  kindIcon(kind: FireSafeKind) {
+    return KIND_ICONS[kind];
+  }
   kindLabel(kind: FireSafeKind) {
-    return (
-      {
-        equipment: 'Yangın ekipmanı',
-        'periodic-check': 'Periyodik kontrol',
-        nonconformity: 'Uygunsuzluk',
-        'emergency-plan': 'Acil durum planı',
-      } as const
-    )[kind];
+    return KIND_LABELS[kind];
   }
-  riskLabel(risk: FireSafeRecord['riskLevel']) {
-    return risk
-      ? ({ low: 'Düşük', medium: 'Orta', high: 'Yüksek', critical: 'Kritik' } as const)[risk]
-      : 'Belirtilmedi';
+  riskLabel(row: FireSafeRecord) {
+    return row.riskLevel ? RISK_LABELS[row.riskLevel] : 'Belirtilmedi';
   }
-  riskClass(risk: FireSafeRecord['riskLevel']) {
-    return risk === 'critical' || risk === 'high'
-      ? 'odv-badge-danger'
-      : risk === 'medium'
-        ? 'odv-badge-warning'
-        : 'odv-badge-success';
+  riskClass(row: FireSafeRecord) {
+    return row.riskLevel ? badgeClass(RISK_TONES[row.riskLevel]) : 'odv-badge-neutral';
   }
-  statusLabel(status: FireSafeRecord['status']) {
-    return (
-      {
-        active: 'Aktif',
-        pending: 'Bekliyor',
-        completed: 'Tamamlandı',
-        'action-required': 'Aksiyon gerekli',
-        closed: 'Kapalı',
-      } as const
-    )[status];
+  statusLabel(status: FireSafeStatus) {
+    return STATUS_LABELS[status];
   }
-  statusClass(status: FireSafeRecord['status']) {
-    return status === 'action-required'
-      ? 'odv-badge-danger'
-      : status === 'pending'
-        ? 'odv-badge-warning'
-        : 'odv-badge-success';
-  }
-  private localDate(value: string | null) {
-    return value ? value.slice(0, 16) : '';
+  statusClass(row: FireSafeRecord) {
+    return badgeClass(STATUS_TONES[row.status]);
   }
 }

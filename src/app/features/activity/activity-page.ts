@@ -25,7 +25,7 @@ interface Audit {
     <section class="odv-card overflow-hidden">
       @if (loading()) {
         <div class="grid min-h-64 place-items-center">
-          <span class="material-symbols-rounded animate-spin text-4xl text-violet-600"
+          <span class="material-symbols-rounded animate-spin text-4xl text-indigo-600"
             >progress_activity</span
           >
         </div>
@@ -35,7 +35,7 @@ interface Audit {
         <div class="divide-y divide-slate-100 dark:divide-slate-800">
           @for (item of items(); track item.id) {
             <article class="grid gap-4 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-              <span class="grid size-11 place-items-center rounded-xl bg-violet-50 text-violet-700"
+              <span class="grid size-11 place-items-center rounded-xl bg-indigo-50 text-indigo-700"
                 ><span class="material-symbols-rounded">{{ icon(item.event) }}</span></span
               >
               <div>

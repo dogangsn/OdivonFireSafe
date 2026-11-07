@@ -5,6 +5,7 @@ import { AuthStore } from '../core/auth/auth-store';
 import { I18nStore, SupportedLang, TranslatePipe } from '../core/i18n/i18n';
 import { PRODUCT_NAVIGATION } from '../domain/domain-navigation';
 import { PRODUCT } from '../domain/product-manifest';
+import { BUILD_INFO } from '../core/version/build-info';
 
 interface MenuItem {
   readonly path: string;
@@ -144,6 +145,9 @@ const nav = (key: string): MenuItem => {
               <span class="material-symbols-rounded directional-icon">logout</span>
             </button>
           </div>
+          <p class="mt-3 text-center text-[11px] text-slate-500" [title]="build.builtAt">
+            Sürüm {{ build.version }} · {{ build.commit }}
+          </p>
         </div>
       </aside>
 
@@ -271,6 +275,7 @@ const nav = (key: string): MenuItem => {
 })
 export class AppShell {
   readonly product = PRODUCT;
+  readonly build = BUILD_INFO;
   readonly auth = inject(AuthStore);
   readonly i18n = inject(I18nStore);
   private readonly router = inject(Router);

@@ -17,8 +17,16 @@ import { VersionStore } from './core/version/version-store';
         <section class="odv-card max-w-md p-7 text-center">
           <span class="material-symbols-rounded mb-3 text-5xl text-indigo-600">system_update</span>
           <h2 id="update-title" class="text-xl font-black">Uygulama güncellemesi hazır</h2>
-          <p class="text-sm text-slate-500">Güvenli biçimde en güncel sürüme geçin.</p>
-          <button type="button" class="odv-btn-primary mt-3 w-full" (click)="version.applyUpdate()">
+          <p class="text-sm text-slate-500">
+            Yeni sürüm {{ version.remote()?.version }} yayında. Güncelleme sonrası oturumunuz
+            kapanır ve giriş sayfasına yönlendirilirsiniz.
+          </p>
+          <button
+            type="button"
+            class="odv-btn-primary mt-3 w-full"
+            (click)="version.applyUpdate()"
+            [disabled]="version.updating()"
+          >
             Şimdi güncelle
           </button>
         </section>
